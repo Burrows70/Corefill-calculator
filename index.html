@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Corefill Calculator</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#e8720c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Corefill">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+  :root{
+    --bg:#111417;
+    --card:#1b2025;
+    --card2:#20262c;
+    --line:#2c333a;
+    --text:#f2f3f4;
+    --muted:#9aa3ab;
+    --accent:#e8720c;
+    --accent2:#ffa94d;
+    --good:#3ecf6e;
+    --danger:#e5484d;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{min-height:100%; overflow-y:auto;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding-bottom:calc(195px + env(safe-area-inset-bottom));
+    -webkit-user-select:none;
+    user-select:none;
+  }
+  input{-webkit-user-select:text; user-select:text;}
+  header{
+    position:sticky; top:0; z-index:20;
+    background:linear-gradient(180deg,#161a1e,#161a1eee 80%,transparent);
+    padding:14px 16px 10px;
+    display:flex; align-items:center; justify-content:space-between;
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:18px; margin:0; letter-spacing:.2px;}
+  header .sub{font-size:11px; color:var(--muted); margin-top:2px;}
+  .iconbtn{
+    background:var(--card2); border:1px solid var(--line); color:var(--text);
+    border-radius:10px; padding:8px 10px; font-size:13px; display:flex; gap:6px; align-items:center;
+  }
+  main{padding:12px 12px 0; max-width:520px; margin:0 auto;}
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px;
+    margin-bottom:12px;
+  }
+  .card h2{
+    font-size:13px; text-transform:uppercase; letter-spacing:.6px;
+    color:var(--accent2); margin:0 0 10px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .segmented{
+    display:flex; background:var(--card2); border-radius:10px; padding:3px; gap:3px; border:1px solid var(--line);
+  }
+  .segmented button{
+    flex:1; border:none; background:transparent; color:var(--muted);
+    padding:10px 6px; border-radius:8px; font-size:13px; font-weight:600;
+  }
+  .segmented button.active{background:var(--accent); color:#1a0e00;}
+  .segmented.wrap{flex-wrap:wrap;}
+  .segmented.wrap button{flex:1 1 30%; min-width:80px;}
+  .segmented button .sub{display:block; font-size:10px; font-weight:500; opacity:.75; margin-top:2px;}
+  .row{display:flex; gap:10px; margin-top:10px;}
+  .row > *{flex:1;}
+  label.field{display:block; margin-top:10px;}
+  label.field .lbl{font-size:12px; color:var(--muted); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;}
+  .num-input{
+    display:flex; align-items:center; background:var(--card2);
+    border:1px solid var(--line); border-radius:10px; overflow:hidden;
+  }
+  .num-input button{
+    background:transparent; border:none; color:var(--accent2); font-size:22px;
+    width:46px; height:46px; line-height:1; font-weight:700;
+  }
+  .num-input button:active{background:#00000030;}
+  .num-input input{
+    flex:1; text-align:center; background:transparent; border:none; color:var(--text);
+    font-size:19px; font-weight:600; height:46px; min-width:0;
+    -moz-appearance:textfield;
+  }
+  .num-input input::-webkit-outer-spin-button,
+  .num-input input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+  .decimal-input{
+    background:var(--card2); border:1px solid var(--line); border-radius:10px;
+    color:var(--text); font-size:19px; font-weight:600; text-align:center; height:46px; width:100%; padding:0 10px;
+  }
+  .hint{font-size:11px; color:var(--muted); margin-top:4px;}
+  .computed-chip{
+    display:inline-flex; align-items:baseline; gap:5px; background:#00000030; border:1px solid var(--line);
+    border-radius:8px; padding:4px 9px; font-size:12px; color:var(--muted);
+  }
+  .computed-chip b{color:var(--accent2); font-size:14px;}
+
+  .breakdown{margin-top:2px;}
+  .brow{
+    display:flex; justify-content:space-between; padding:7px 0; font-size:13.5px;
+    border-bottom:1px dashed var(--line);
+  }
+  .brow:last-child{border-bottom:none;}
+  .brow .l{color:var(--muted);}
+  .brow .r{font-weight:600; font-variant-numeric:tabular-nums;}
+  .brow.total .l, .brow.total .r{color:var(--text); font-weight:700;}
+
+  .section-card{position:relative;}
+  .section-card .removebtn{
+    background:transparent; border:none; color:var(--danger); font-size:12px; font-weight:700; padding:4px 6px;
+  }
+  .add-section{
+    width:100%; padding:13px; border-radius:12px; border:1.5px dashed var(--line);
+    background:transparent; color:var(--accent2); font-size:14px; font-weight:600; margin-bottom:14px;
+  }
+
+  .result-bar{
+    position:fixed; left:0; right:0; bottom:0; z-index:30;
+    background:linear-gradient(180deg,transparent,#0d0f11 22%);
+    padding:10px 12px calc(14px + env(safe-area-inset-bottom));
+  }
+  .result-card{
+    max-width:520px; margin:0 auto;
+    background:linear-gradient(135deg,var(--accent),#c85a00);
+    border-radius:16px; padding:14px 16px; box-shadow:0 8px 24px #00000060;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .result-card .lab{font-size:11px; color:#2a1500; font-weight:700; text-transform:uppercase; letter-spacing:.5px;}
+  .result-card .val{font-size:30px; font-weight:800; color:#1a0e00; line-height:1.1;}
+  .result-card .val span{font-size:15px; font-weight:700;}
+  .result-card .detail{font-size:11px; color:#2a1500cc; margin-top:2px;}
+  .result-card .expand{
+    background:#00000022; border:none; border-radius:10px; width:38px; height:38px; color:#1a0e00; font-size:18px; font-weight:800;
+  }
+  .waste-row{
+    max-width:520px; margin:0 auto 8px; display:flex; align-items:center; justify-content:space-between;
+    background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:6px 10px;
+  }
+  .waste-lab{font-size:12px; color:var(--muted); font-weight:600;}
+  .waste-stepper{display:flex; align-items:center; gap:6px;}
+  .waste-stepper button{
+    background:var(--card); border:1px solid var(--line); color:var(--accent2); font-size:16px; font-weight:800;
+    width:28px; height:28px; border-radius:7px; line-height:1;
+  }
+  .waste-stepper input{
+    width:34px; background:transparent; border:none; color:var(--text); font-size:15px; font-weight:700; text-align:center;
+  }
+  .waste-stepper span{font-size:13px; color:var(--muted);}
+
+  .modal-overlay{
+    position:fixed; inset:0; background:#000a; z-index:50; display:flex; align-items:flex-end;
+  }
+  .modal{
+    background:var(--card); width:100%; max-height:80vh; overflow-y:auto;
+    border-radius:18px 18px 0 0; padding:16px 16px calc(20px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--line);
+  }
+  .modal h3{margin:0 0 10px; font-size:16px;}
+  .modal .closebtn{
+    display:block; margin:14px auto 0; background:var(--card2); border:1px solid var(--line);
+    color:var(--text); padding:11px 20px; border-radius:10px; font-size:14px;
+  }
+  .grabber{width:36px; height:4px; background:var(--line); border-radius:3px; margin:0 auto 12px;}
+  .field-note{font-size:11.5px; color:var(--muted); line-height:1.5; margin:6px 0 14px;}
+  .badge-custom{
+    display:flex; gap:8px; align-items:center; margin-top:8px; background:var(--card2);
+    border:1px solid var(--line); border-radius:10px; padding:8px 10px;
+  }
+  .badge-custom input{background:transparent; border:none; color:var(--text); font-size:15px; width:70px; text-align:center;}
+  .toolbar-row{display:flex; gap:8px;}
+  footer.tip{font-size:11px; color:var(--muted); text-align:center; padding:6px 20px 0; line-height:1.5;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🧱 Corefill Calculator</h1>
+    <div class="sub" id="jobLabel">Untitled job</div>
+  </div>
+  <button class="iconbtn" onclick="openMenu()">⋮ Menu</button>
+</header>
+
+<main id="sections"></main>
+
+<button class="add-section" onclick="addSection()">+ Add Wall / Area</button>
+
+<footer class="tip">Tap 📖 on the result bar for the full breakdown. Data saves automatically on this phone.</footer>
+
+<div class="result-bar">
+  <div class="waste-row" onclick="event.stopPropagation()">
+    <span class="waste-lab">Waste allowance</span>
+    <div class="waste-stepper">
+      <button type="button" onclick="adjustWaste(-1)">−</button>
+      <input id="wastePctInput" type="number" inputmode="numeric" value="10" onchange="setWaste(this.value)">
+      <span>%</span>
+      <button type="button" onclick="adjustWaste(1)">+</button>
+    </div>
+  </div>
+  <div class="result-card" onclick="openBreakdown()">
+    <div>
+      <div class="lab">Order Quantity</div>
+      <div class="val" id="orderQty">0.0<span> m³</span></div>
+      <div class="detail" id="orderDetail">incl. 10% waste, rounded to 0.2m³</div>
+    </div>
+    <button class="expand">📖</button>
+  </div>
+</div>
+
+<div id="menuModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeMenu()">
+  <div class="modal">
+    <div class="grabber"></div>
+    <h3>Menu</h3>
+    <div class="toolbar-row">
+      <button class="add-section" style="margin-bottom:0;" onclick="renameJob()">✏️ Rename Job</button>
+    </div>
+    <div class="toolbar-row" style="margin-top:8px;">
+      <button class="add-section" style="margin-bottom:0;" onclick="newJob()">🆕 New Job (clear all)</button>
+    </div>
+    <p class="field-note">
+      <b>How to install on your phone:</b><br>
+      • <b>Android (Chrome):</b> tap ⋮ in Chrome → "Add to Home screen".<br>
+      • <b>iPhone (Safari):</b> tap the Share icon → "Add to Home Screen".<br>
+      Once added, it opens full-screen like a real app and works with no signal.
+    </p>
+    <button class="closebtn" onclick="closeMenu()">Close</button>
+  </div>
+</div>
+
+<div id="breakdownModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeBreakdown()">
+  <div class="modal">
+    <div class="grabber"></div>
+    <h3>Full Breakdown</h3>
+    <div id="breakdownContent"></div>
+    <button class="closebtn" onclick="closeBreakdown()">Close</button>
+  </div>
+</div>
+
+<script>
+const BLOCK_TYPES = {
+  standard: { label: '200 Series',         sub: '390×190×190', perM3: 130 },
+  hblock:   { label: '200 Series H Block', sub: '390×190×190', perM3: 110 },
+  hblock290:{ label: '300 Series H Block', sub: '390×290×190', perM3: 69  },
+  s150:     { label: '150 Series',         sub: '390×190×140', perM3: 220 },
+  custom:   { label: 'Custom',             sub: '',            perM3: null }
+};
+const COURSE_HEIGHT = 0.2; // m per block course
+
+let state = loadState();
+
+function defaultSection(n){
+  return {
+    id: Date.now() + Math.random(),
+    name: 'Wall ' + n,
+    blockType: 'standard',
+    customPerM3: 130,
+    bond: 'single',      // single | double
+    heightM: 2.8,
+    topCourse: 0,         // blocks counted along top course
+    heads: 0,
+    sills: 0,
+    droppers: 0,
+    threeQuarter: 0,
+    columns: 0,
+    extraWall: 0
+  };
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem('corefill_job_v1');
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed.wastePct === undefined) parsed.wastePct = 10;
+      return parsed;
+    }
+  }catch(e){}
+  return { jobName: 'Untitled job', wastePct: 10, sections: [defaultSection(1)] };
+}
+function saveState(){
+  localStorage.setItem('corefill_job_v1', JSON.stringify(state));
+}
+
+function addSection(){
+  state.sections.push(defaultSection(state.sections.length + 1));
+  saveState(); render();
+}
+function removeSection(id){
+  if(state.sections.length === 1){ alert("At least one wall/area is required."); return; }
+  state.sections = state.sections.filter(s => s.id !== id);
+  saveState(); render();
+}
+
+function calcSection(s){
+  const blocksHigh = s.heightM > 0 ? Math.round(s.heightM / COURSE_HEIGHT) : 0;
+  const topRows = s.bond === 'double' ? 2 : 1;
+  const dropperCourses = Math.max(blocksHigh - topRows, 0);
+  const topBlocks = s.topCourse * topRows;
+  const dropperBlocks = (Number(s.droppers)||0) * dropperCourses * 0.5;
+  const threeQBlocks = (Number(s.threeQuarter)||0) * dropperCourses * 0.5;
+  const totalBlocks = topBlocks + (Number(s.heads)||0) + (Number(s.sills)||0)
+                     + dropperBlocks + threeQBlocks
+                     + (Number(s.columns)||0) + (Number(s.extraWall)||0);
+  const perM3 = s.blockType === 'custom' ? (Number(s.customPerM3)||1) : BLOCK_TYPES[s.blockType].perM3;
+  const m3 = totalBlocks / perM3;
+  return { blocksHigh, topRows, dropperCourses, topBlocks, dropperBlocks, threeQBlocks, totalBlocks, perM3, m3 };
+}
+
+function calcGrand(){
+  let sumM3 = 0, sumBlocks = 0;
+  const perSection = state.sections.map(s=>{
+    const c = calcSection(s);
+    sumM3 += c.m3;
+    sumBlocks += c.totalBlocks;
+    return {s, c};
+  });
+  const wastePct = Number(state.wastePct) || 0;
+  const withWaste = sumM3 * (1 + wastePct/100);
+  const order = Math.ceil((withWaste - 1e-9) / 0.2) * 0.2;
+  return { perSection, sumM3, sumBlocks, withWaste, order, wastePct };
+}
+
+function render(){
+  document.getElementById('jobLabel').textContent = state.jobName || 'Untitled job';
+  const main = document.getElementById('sections');
+  main.innerHTML = '';
+  state.sections.forEach((s, idx)=>{
+    main.appendChild(renderSection(s, idx));
+  });
+  updateResult();
+  saveState();
+}
+
+function renderSection(s, idx){
+  const div = document.createElement('div');
+  div.className = 'card section-card';
+  const c = calcSection(s);
+
+  div.innerHTML = `
+    <h2>
+      <input value="${escapeHtml(s.name)}" style="background:transparent;border:none;color:var(--accent2);font-size:13px;text-transform:uppercase;letter-spacing:.6px;font-weight:700;width:60%;padding:0;" data-field="name">
+      ${state.sections.length>1 ? `<button class="removebtn" data-action="remove">✕ remove</button>` : '<span></span>'}
+    </h2>
+
+    <div class="segmented wrap" data-group="blockType">
+      ${Object.keys(BLOCK_TYPES).map(k=>`<button data-val="${k}" class="${s.blockType===k?'active':''}">${BLOCK_TYPES[k].label}${BLOCK_TYPES[k].sub?`<span class="sub">${BLOCK_TYPES[k].sub}</span>`:''}</button>`).join('')}
+    </div>
+    ${s.blockType==='custom' ? `
+      <div class="badge-custom">
+        <span style="font-size:12px;color:var(--muted);">Blocks per m³:</span>
+        <input type="number" inputmode="decimal" value="${s.customPerM3}" data-field="customPerM3">
+      </div>` : ''}
+
+    <div class="row">
+      <div>
+        <label class="field"><span class="lbl">Bond Beam</span></label>
+        <div class="segmented" data-group="bond">
+          <button data-val="single" class="${s.bond==='single'?'active':''}">Single</button>
+          <button data-val="double" class="${s.bond==='double'?'active':''}">Double</button>
+        </div>
+      </div>
+    </div>
+
+    <label class="field">
+      <span class="lbl">Wall Height (m)</span>
+      <input class="decimal-input" type="number" inputmode="decimal" step="0.1" value="${s.heightM}" data-field="heightM">
+      <div class="hint"><span class="computed-chip">Blocks high: <b>${c.blocksHigh}</b></span> &nbsp; <span class="computed-chip">Core rows (excl. top): <b>${c.dropperCourses}</b></span></div>
+    </label>
+
+    ${stepperField('Top Course Blocks', 'topCourse', s.topCourse, 'Blocks counted along the top row (×'+c.topRows+' for '+s.bond+' bond)')}
+    ${stepperField('Heads', 'heads', s.heads)}
+    ${stepperField('Sills', 'sills', s.sills)}
+    ${stepperField('Droppers', 'droppers', s.droppers, 'Vertical cores — auto ×'+c.dropperCourses+' courses ×½')}
+    ${stepperField('3/4 & Others', 'threeQuarter', s.threeQuarter, 'Calculated same as droppers')}
+    ${stepperField('Columns', 'columns', s.columns, '390×390 or 290×290 — enter block count')}
+    ${stepperField('Extra Wall', 'extraWall', s.extraWall)}
+
+    <div class="breakdown" style="margin-top:12px; padding-top:10px; border-top:1px solid var(--line);">
+      <div class="brow"><span class="l">Total blocks</span><span class="r">${round1(c.totalBlocks)}</span></div>
+      <div class="brow total"><span class="l">Section volume</span><span class="r">${c.m3.toFixed(3)} m³</span></div>
+    </div>
+  `;
+
+  // wire events
+  div.querySelector('[data-field="name"]').addEventListener('change', e=>{ s.name = e.target.value || s.name; saveState(); });
+  div.querySelectorAll('[data-group="blockType"] button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ s.blockType = btn.dataset.val; saveState(); render(); });
+  });
+  div.querySelectorAll('[data-group="bond"] button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ s.bond = btn.dataset.val; saveState(); render(); });
+  });
+  const removeBtn = div.querySelector('[data-action="remove"]');
+  if(removeBtn) removeBtn.addEventListener('click', ()=>removeSection(s.id));
+
+  const heightInput = div.querySelector('[data-field="heightM"]');
+  heightInput.addEventListener('input', ()=>{ s.heightM = parseFloat(heightInput.value)||0; saveState(); renderInPlaceStats(div, s); });
+  heightInput.addEventListener('change', render);
+
+  const customInput = div.querySelector('[data-field="customPerM3"]');
+  if(customInput) customInput.addEventListener('change', ()=>{ s.customPerM3 = parseFloat(customInput.value)||1; saveState(); render(); });
+
+  wireSteppers(div, s);
+
+  return div;
+}
+
+function stepperField(label, field, value, note){
+  return `
+    <label class="field">
+      <span class="lbl">${label}</span>
+      <div class="num-input" data-stepper="${field}">
+        <button data-step="-1" type="button">−</button>
+        <input type="number" inputmode="numeric" value="${value}" data-field="${field}">
+        <button data-step="1" type="button">+</button>
+      </div>
+      ${note ? `<div class="hint">${note}</div>` : ''}
+    </label>
+  `;
+}
+
+function wireSteppers(div, s){
+  div.querySelectorAll('[data-stepper]').forEach(wrap=>{
+    const field = wrap.dataset.stepper;
+    const input = wrap.querySelector('input');
+    wrap.querySelectorAll('button[data-step]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const delta = parseInt(btn.dataset.step,10);
+        s[field] = Math.max(0, (Number(s[field])||0) + delta);
+        saveState(); render();
+      });
+    });
+    input.addEventListener('change', ()=>{
+      s[field] = Math.max(0, parseFloat(input.value)||0);
+      saveState(); render();
+    });
+  });
+}
+
+function renderInPlaceStats(div, s){
+  const c = calcSection(s);
+  const hints = div.querySelectorAll('.hint .computed-chip b');
+  if(hints[0]) hints[0].textContent = c.blocksHigh;
+  if(hints[1]) hints[1].textContent = c.dropperCourses;
+  updateResult();
+}
+
+function updateResult(){
+  const g = calcGrand();
+  document.getElementById('orderQty').innerHTML = g.order.toFixed(1) + '<span> m³</span>';
+  document.getElementById('orderDetail').textContent =
+    `${round1(g.sumBlocks)} blocks total · ${g.sumM3.toFixed(3)}m³ raw → +${g.wastePct}% → ${g.withWaste.toFixed(3)}m³`;
+  document.getElementById('wastePctInput').value = g.wastePct;
+  renderBreakdownModal(g);
+}
+
+function renderBreakdownModal(g){
+  const el = document.getElementById('breakdownContent');
+  let html = '';
+  g.perSection.forEach(({s,c})=>{
+    html += `<div style="margin-bottom:14px;">
+      <div style="font-weight:700;color:var(--accent2);margin-bottom:6px;">${escapeHtml(s.name)} <span style="color:var(--muted);font-weight:400;font-size:12px;">(${BLOCK_TYPES[s.blockType]?.label||'Custom'}${BLOCK_TYPES[s.blockType]?.sub?' '+BLOCK_TYPES[s.blockType].sub:''}, ${s.bond} bond, ${c.blocksHigh} blocks high)</span></div>
+      <div class="breakdown">
+        <div class="brow"><span class="l">Top course (${s.topCourse} × ${c.topRows})</span><span class="r">${round1(c.topBlocks)}</span></div>
+        <div class="brow"><span class="l">Heads</span><span class="r">${round1(s.heads)}</span></div>
+        <div class="brow"><span class="l">Sills</span><span class="r">${round1(s.sills)}</span></div>
+        <div class="brow"><span class="l">Droppers (${s.droppers} × ${c.dropperCourses} × ½)</span><span class="r">${round1(c.dropperBlocks)}</span></div>
+        <div class="brow"><span class="l">3/4 & Others (${s.threeQuarter} × ${c.dropperCourses} × ½)</span><span class="r">${round1(c.threeQBlocks)}</span></div>
+        <div class="brow"><span class="l">Columns</span><span class="r">${round1(s.columns)}</span></div>
+        <div class="brow"><span class="l">Extra Wall</span><span class="r">${round1(s.extraWall)}</span></div>
+        <div class="brow total"><span class="l">Total blocks</span><span class="r">${round1(c.totalBlocks)}</span></div>
+        <div class="brow"><span class="l">÷ ${c.perM3} blocks/m³</span><span class="r">${c.m3.toFixed(3)} m³</span></div>
+      </div>
+    </div>`;
+  });
+  html += `<div class="breakdown" style="border-top:1px solid var(--line);padding-top:10px;">
+    <div class="brow"><span class="l">Total blocks (all areas)</span><span class="r">${round1(g.sumBlocks)}</span></div>
+    <div class="brow"><span class="l">Raw volume</span><span class="r">${g.sumM3.toFixed(3)} m³</span></div>
+    <div class="brow"><span class="l">+${g.wastePct}% waste</span><span class="r">${g.withWaste.toFixed(3)} m³</span></div>
+    <div class="brow total"><span class="l">Order (next 0.2m³)</span><span class="r">${g.order.toFixed(1)} m³</span></div>
+  </div>`;
+  el.innerHTML = html;
+}
+
+function round1(n){ n = Number(n)||0; return (Math.round(n*10)/10).toString(); }
+function escapeHtml(str){ return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+function adjustWaste(delta){
+  state.wastePct = Math.max(0, (Number(state.wastePct)||0) + delta);
+  saveState(); updateResult();
+}
+function setWaste(val){
+  state.wastePct = Math.max(0, parseFloat(val)||0);
+  saveState(); updateResult();
+}
+
+function openMenu(){ document.getElementById('menuModal').style.display='flex'; }
+function closeMenu(){ document.getElementById('menuModal').style.display='none'; }
+function openBreakdown(){ document.getElementById('breakdownModal').style.display='flex'; }
+function closeBreakdown(){ document.getElementById('breakdownModal').style.display='none'; }
+
+function renameJob(){
+  const name = prompt('Job name:', state.jobName || '');
+  if(name !== null){ state.jobName = name.trim() || 'Untitled job'; saveState(); render(); closeMenu(); }
+}
+function newJob(){
+  if(confirm('Clear all sections and start a new job?')){
+    state = { jobName: 'Untitled job', wastePct: 10, sections: [defaultSection(1)] };
+    saveState(); render(); closeMenu();
+  }
+}
+
+render();
+
+// Register service worker if available (enables full offline install when hosted)
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
