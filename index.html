@@ -39,7 +39,7 @@
   header{
     position:sticky; top:0; z-index:20;
     background:linear-gradient(180deg,#161a1e,#161a1eee 80%,transparent);
-    padding:14px 16px 10px;
+    padding:calc(14px + env(safe-area-inset-top)) 16px 10px;
     display:flex; align-items:center; justify-content:space-between;
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--line);
@@ -226,8 +226,12 @@
       <button class="add-section" style="margin-bottom:0;" onclick="renameJob()">✏️ Rename Job</button>
     </div>
     <div class="toolbar-row" style="margin-top:8px;">
+      <button class="add-section" style="margin-bottom:0;" onclick="saveJobSnapshot()">💾 Save Job</button>
+    </div>
+    <div class="toolbar-row" style="margin-top:8px;">
       <button class="add-section" style="margin-bottom:0;" onclick="newJob()">🆕 New Job (clear all)</button>
     </div>
+    <div id="savedJobsList" style="margin-top:14px;"></div>
     <p class="field-note">
       <b>How to install on your phone:</b><br>
       • <b>Android (Chrome):</b> tap ⋮ in Chrome → "Add to Home screen".<br>
@@ -539,7 +543,67 @@ function setWaste(val){
   saveState(); updateResult();
 }
 
-function openMenu(){ document.getElementById('menuModal').style.display='flex'; }
+function getSavedJobs(){
+  try{ return JSON.parse(localStorage.getItem('corefill_saved_jobs')||'[]'); }catch(e){ return []; }
+}
+function setSavedJobs(jobs){ localStorage.setItem('corefill_saved_jobs', JSON.stringify(jobs)); }
+
+function saveJobSnapshot(){
+  let name = state.jobName;
+  if(!name || name === 'Untitled job'){
+    name = prompt('Name this job:', '');
+    if(name === null) return;
+    name = name.trim() || 'Untitled job';
+    state.jobName = name;
+  }
+  const jobs = getSavedJobs();
+  const snap = { name, savedAt: new Date().toISOString(), state: JSON.parse(JSON.stringify(state)) };
+  const idx = jobs.findIndex(j => j.name === name);
+  if(idx >= 0){
+    if(!confirm(`"${name}" is already saved. Overwrite it?`)) return;
+    jobs[idx] = snap;
+  } else {
+    jobs.unshift(snap);
+  }
+  setSavedJobs(jobs);
+  saveState(); render(); renderSavedJobs();
+  alert(`Saved "${name}" ✓`);
+}
+
+function loadJob(name){
+  const job = getSavedJobs().find(j => j.name === name);
+  if(!job) return;
+  if(!confirm(`Load "${name}"? Anything unsaved in the current job will be lost.`)) return;
+  state = JSON.parse(JSON.stringify(job.state));
+  saveState(); render(); closeMenu();
+}
+
+function deleteJob(name){
+  if(!confirm(`Delete saved job "${name}"?`)) return;
+  setSavedJobs(getSavedJobs().filter(j => j.name !== name));
+  renderSavedJobs();
+}
+
+function renderSavedJobs(){
+  const el = document.getElementById('savedJobsList');
+  const jobs = getSavedJobs();
+  if(jobs.length === 0){ el.innerHTML = '<p class="field-note" style="margin:0;">No saved jobs yet — tap 💾 Save Job to keep the current one.</p>'; return; }
+  el.innerHTML = '<div style="font-size:12px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">Saved Jobs</div>' +
+    jobs.map(j=>{
+      const d = new Date(j.savedAt);
+      const when = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      return `<div style="display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+        <div style="flex:1;min-width:0;" onclick="loadJob('${escapeHtml(j.name).replace(/'/g,"\\'")}')">
+          <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(j.name)}</div>
+          <div style="font-size:11px;color:var(--muted);">${when}</div>
+        </div>
+        <button style="background:var(--accent);border:none;color:#1a0e00;font-weight:700;border-radius:8px;padding:8px 12px;font-size:13px;" onclick="loadJob('${escapeHtml(j.name).replace(/'/g,"\\'")}')">Load</button>
+        <button style="background:transparent;border:none;color:var(--danger);font-size:16px;padding:6px;" onclick="deleteJob('${escapeHtml(j.name).replace(/'/g,"\\'")}')">✕</button>
+      </div>`;
+    }).join('');
+}
+
+function openMenu(){ renderSavedJobs(); document.getElementById('menuModal').style.display='flex'; }
 function closeMenu(){ document.getElementById('menuModal').style.display='none'; }
 function openBreakdown(){ document.getElementById('breakdownModal').style.display='flex'; }
 function closeBreakdown(){ document.getElementById('breakdownModal').style.display='none'; }
@@ -549,7 +613,7 @@ function renameJob(){
   if(name !== null){ state.jobName = name.trim() || 'Untitled job'; saveState(); render(); closeMenu(); }
 }
 function newJob(){
-  if(confirm('Clear all sections and start a new job?')){
+  if(confirm('Start a new job? The current one will be cleared — tap Save Job first if you want to keep it.')){
     state = { jobName: 'Untitled job', wastePct: 10, sections: [defaultSection(1)] };
     saveState(); render(); closeMenu();
   }
