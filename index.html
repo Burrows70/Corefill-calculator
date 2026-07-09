@@ -264,6 +264,7 @@ function defaultSection(n){
     blockType: 'standard',
     customPerM3: 130,
     bond: 'single',      // single | double
+    halfBottom: false,   // half block bottom course
     heightM: 2.8,
     topCourse: 0,         // blocks counted along top course
     heads: 0,
@@ -301,9 +302,11 @@ function removeSection(id){
 }
 
 function calcSection(s){
-  const blocksHigh = s.heightM > 0 ? Math.round(s.heightM / COURSE_HEIGHT) : 0;
+  const hb = !!s.halfBottom;
+  // with a half block bottom course, the wall is N full blocks + a half (e.g. 2.7m = 13 + half)
+  const blocksHigh = s.heightM > 0 ? Math.round((s.heightM - (hb ? COURSE_HEIGHT/2 : 0)) / COURSE_HEIGHT) : 0;
   const topRows = s.bond === 'double' ? 2 : 1;
-  const dropperCourses = Math.max(blocksHigh - topRows, 0);
+  const dropperCourses = Math.max(blocksHigh - topRows, 0) + (hb && blocksHigh > 0 ? 0.5 : 0);
   const topBlocks = s.topCourse * topRows;
   const dropperBlocks = (Number(s.droppers)||0) * dropperCourses * 0.5;
   const threeQBlocks = (Number(s.threeQuarter)||0) * dropperCourses * 0.5;
@@ -368,12 +371,19 @@ function renderSection(s, idx){
           <button data-val="double" class="${s.bond==='double'?'active':''}">Double</button>
         </div>
       </div>
+      <div>
+        <label class="field"><span class="lbl">Half Block Bottom</span></label>
+        <div class="segmented" data-group="halfBottom">
+          <button data-val="no" class="${!s.halfBottom?'active':''}">No</button>
+          <button data-val="yes" class="${s.halfBottom?'active':''}">Yes</button>
+        </div>
+      </div>
     </div>
 
     <label class="field">
       <span class="lbl">Wall Height (m)</span>
       <input class="decimal-input" type="number" inputmode="decimal" step="0.1" value="${s.heightM}" data-field="heightM">
-      <div class="hint"><span class="computed-chip">Blocks high: <b>${c.blocksHigh}</b></span> &nbsp; <span class="computed-chip">Core rows (excl. top): <b>${c.dropperCourses}</b></span></div>
+      <div class="hint"><span class="computed-chip">Blocks high: <b>${fmtHalf(c.blocksHigh + (s.halfBottom?0.5:0))}</b></span> &nbsp; <span class="computed-chip">Core rows (excl. top): <b>${fmtHalf(c.dropperCourses)}</b></span></div>
     </label>
 
     ${stepperField('Top Course Blocks', 'topCourse', s.topCourse, 'Blocks counted along the top row (×'+c.topRows+' for '+s.bond+' bond)')}
@@ -397,6 +407,9 @@ function renderSection(s, idx){
   });
   div.querySelectorAll('[data-group="bond"] button').forEach(btn=>{
     btn.addEventListener('click', ()=>{ s.bond = btn.dataset.val; saveState(); render(); });
+  });
+  div.querySelectorAll('[data-group="halfBottom"] button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ s.halfBottom = btn.dataset.val === 'yes'; saveState(); render(); });
   });
   const removeBtn = div.querySelector('[data-action="remove"]');
   if(removeBtn) removeBtn.addEventListener('click', ()=>removeSection(s.id));
@@ -448,8 +461,8 @@ function wireSteppers(div, s){
 function renderInPlaceStats(div, s){
   const c = calcSection(s);
   const hints = div.querySelectorAll('.hint .computed-chip b');
-  if(hints[0]) hints[0].textContent = c.blocksHigh;
-  if(hints[1]) hints[1].textContent = c.dropperCourses;
+  if(hints[0]) hints[0].textContent = fmtHalf(c.blocksHigh + (s.halfBottom?0.5:0));
+  if(hints[1]) hints[1].textContent = fmtHalf(c.dropperCourses);
   updateResult();
 }
 
@@ -467,13 +480,13 @@ function renderBreakdownModal(g){
   let html = '';
   g.perSection.forEach(({s,c})=>{
     html += `<div style="margin-bottom:14px;">
-      <div style="font-weight:700;color:var(--accent2);margin-bottom:6px;">${escapeHtml(s.name)} <span style="color:var(--muted);font-weight:400;font-size:12px;">(${BLOCK_TYPES[s.blockType]?.label||'Custom'}${BLOCK_TYPES[s.blockType]?.sub?' '+BLOCK_TYPES[s.blockType].sub:''}, ${s.bond} bond, ${c.blocksHigh} blocks high)</span></div>
+      <div style="font-weight:700;color:var(--accent2);margin-bottom:6px;">${escapeHtml(s.name)} <span style="color:var(--muted);font-weight:400;font-size:12px;">(${BLOCK_TYPES[s.blockType]?.label||'Custom'}${BLOCK_TYPES[s.blockType]?.sub?' '+BLOCK_TYPES[s.blockType].sub:''}, ${s.bond} bond, ${fmtHalf(c.blocksHigh + (s.halfBottom?0.5:0))} blocks high${s.halfBottom?', half block bottom':''})</span></div>
       <div class="breakdown">
         <div class="brow"><span class="l">Top course (${s.topCourse} × ${c.topRows})</span><span class="r">${round1(c.topBlocks)}</span></div>
         <div class="brow"><span class="l">Heads</span><span class="r">${round1(s.heads)}</span></div>
         <div class="brow"><span class="l">Sills</span><span class="r">${round1(s.sills)}</span></div>
-        <div class="brow"><span class="l">Droppers (${s.droppers} × ${c.dropperCourses} × ½)</span><span class="r">${round1(c.dropperBlocks)}</span></div>
-        <div class="brow"><span class="l">3/4 & Others (${s.threeQuarter} × ${c.dropperCourses} × ½)</span><span class="r">${round1(c.threeQBlocks)}</span></div>
+        <div class="brow"><span class="l">Droppers (${s.droppers} × ${fmtHalf(c.dropperCourses)} × ½)</span><span class="r">${round1(c.dropperBlocks)}</span></div>
+        <div class="brow"><span class="l">3/4 & Others (${s.threeQuarter} × ${fmtHalf(c.dropperCourses)} × ½)</span><span class="r">${round1(c.threeQBlocks)}</span></div>
         <div class="brow"><span class="l">Columns</span><span class="r">${round1(s.columns)}</span></div>
         <div class="brow"><span class="l">Extra Wall</span><span class="r">${round1(s.extraWall)}</span></div>
         <div class="brow total"><span class="l">Total blocks</span><span class="r">${round1(c.totalBlocks)}</span></div>
@@ -491,6 +504,7 @@ function renderBreakdownModal(g){
 }
 
 function round1(n){ n = Number(n)||0; return (Math.round(n*10)/10).toString(); }
+function fmtHalf(n){ n = Number(n)||0; const whole = Math.floor(n); return (n - whole) >= 0.25 ? (whole===0?'½':whole+'½') : whole.toString(); }
 function escapeHtml(str){ return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
 function adjustWaste(delta){
