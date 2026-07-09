@@ -74,7 +74,7 @@
   .segmented.wrap button{flex:1 1 30%; min-width:80px;}
   .segmented button .sub{display:block; font-size:10px; font-weight:500; opacity:.75; margin-top:2px;}
   .row{display:flex; gap:10px; margin-top:10px;}
-  .row > *{flex:1;}
+  .row > *{flex:1; min-width:0;}
   label.field{display:block; margin-top:10px;}
   label.field .lbl{font-size:12px; color:var(--muted); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;}
   .num-input{
@@ -98,6 +98,8 @@
     color:var(--text); font-size:19px; font-weight:600; text-align:center; height:46px; width:100%; padding:0 10px;
   }
   .hint{font-size:11px; color:var(--muted); margin-top:4px;}
+  .col-size-lbl{font-size:12px; color:var(--accent2); font-weight:700; margin-bottom:5px; text-align:center;}
+  .num-input.compact button{width:38px;}
   .computed-chip{
     display:inline-flex; align-items:baseline; gap:5px; background:#00000030; border:1px solid var(--line);
     border-radius:8px; padding:4px 9px; font-size:12px; color:var(--muted);
@@ -401,8 +403,27 @@ function renderSection(s, idx){
     ${stepperField('Sills', 'sills', s.sills)}
     ${stepperField('Droppers', 'droppers', s.droppers, 'Vertical cores — auto ×'+c.dropperCourses+' courses ×½')}
     ${stepperField('3/4 & Others', 'threeQuarter', s.threeQuarter, 'Calculated same as droppers')}
-    ${stepperField('Columns 290×290', 'col290', s.col290, COL_M3.c290 + ' m³ concrete per block')}
-    ${stepperField('Columns 390×390', 'col390', s.col390, COL_M3.c390 + ' m³ concrete per block')}
+    <label class="field"><span class="lbl">Columns</span></label>
+    <div class="row" style="margin-top:6px;">
+      <div>
+        <div class="col-size-lbl">290×290</div>
+        <div class="num-input compact" data-stepper="col290">
+          <button data-step="-1" type="button">−</button>
+          <input type="number" inputmode="numeric" value="${s.col290}" data-field="col290">
+          <button data-step="1" type="button">+</button>
+        </div>
+        <div class="hint">${COL_M3.c290} m³/block</div>
+      </div>
+      <div>
+        <div class="col-size-lbl">390×390</div>
+        <div class="num-input compact" data-stepper="col390">
+          <button data-step="-1" type="button">−</button>
+          <input type="number" inputmode="numeric" value="${s.col390}" data-field="col390">
+          <button data-step="1" type="button">+</button>
+        </div>
+        <div class="hint">${COL_M3.c390} m³/block</div>
+      </div>
+    </div>
     ${stepperField('Extra Wall', 'extraWall', s.extraWall)}
 
     <div class="breakdown" style="margin-top:12px; padding-top:10px; border-top:1px solid var(--line);">
