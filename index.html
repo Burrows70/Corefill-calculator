@@ -254,6 +254,7 @@ const BLOCK_TYPES = {
   custom:   { label: 'Custom',             sub: '',            perM3: null }
 };
 const COURSE_HEIGHT = 0.2; // m per block course
+const COL_M3 = { c290: 0.0084, c390: 0.0183 }; // concrete per column block
 
 let state = loadState();
 
@@ -271,7 +272,8 @@ function defaultSection(n){
     sills: 0,
     droppers: 0,
     threeQuarter: 0,
-    columns: 0,
+    col290: 0,
+    col390: 0,
     extraWall: 0
   };
 }
@@ -282,6 +284,9 @@ function loadState(){
     if(raw){
       const parsed = JSON.parse(raw);
       if(parsed.wastePct === undefined) parsed.wastePct = 10;
+      (parsed.sections||[]).forEach(s=>{
+        if(s.col290 === undefined){ s.col290 = Number(s.columns)||0; s.col390 = 0; delete s.columns; }
+      });
       return parsed;
     }
   }catch(e){}
@@ -310,12 +315,17 @@ function calcSection(s){
   const topBlocks = s.topCourse * topRows;
   const dropperBlocks = (Number(s.droppers)||0) * dropperCourses * 0.5;
   const threeQBlocks = (Number(s.threeQuarter)||0) * dropperCourses * 0.5;
-  const totalBlocks = topBlocks + (Number(s.heads)||0) + (Number(s.sills)||0)
-                     + dropperBlocks + threeQBlocks
-                     + (Number(s.columns)||0) + (Number(s.extraWall)||0);
+  const wallBlocks = topBlocks + (Number(s.heads)||0) + (Number(s.sills)||0)
+                    + dropperBlocks + threeQBlocks + (Number(s.extraWall)||0);
   const perM3 = s.blockType === 'custom' ? (Number(s.customPerM3)||1) : BLOCK_TYPES[s.blockType].perM3;
-  const m3 = totalBlocks / perM3;
-  return { blocksHigh, topRows, dropperCourses, topBlocks, dropperBlocks, threeQBlocks, totalBlocks, perM3, m3 };
+  const wallM3 = wallBlocks / perM3;
+  // column blocks carry their own concrete volume, independent of the wall block type
+  const col290 = Number(s.col290)||0, col390 = Number(s.col390)||0;
+  const colM3 = col290 * COL_M3.c290 + col390 * COL_M3.c390;
+  const totalBlocks = wallBlocks + col290 + col390;
+  const m3 = wallM3 + colM3;
+  return { blocksHigh, topRows, dropperCourses, topBlocks, dropperBlocks, threeQBlocks,
+           wallBlocks, wallM3, col290, col390, colM3, totalBlocks, perM3, m3 };
 }
 
 function calcGrand(){
@@ -391,7 +401,8 @@ function renderSection(s, idx){
     ${stepperField('Sills', 'sills', s.sills)}
     ${stepperField('Droppers', 'droppers', s.droppers, 'Vertical cores — auto ×'+c.dropperCourses+' courses ×½')}
     ${stepperField('3/4 & Others', 'threeQuarter', s.threeQuarter, 'Calculated same as droppers')}
-    ${stepperField('Columns', 'columns', s.columns, '390×390 or 290×290 — enter block count')}
+    ${stepperField('Columns 290×290', 'col290', s.col290, COL_M3.c290 + ' m³ concrete per block')}
+    ${stepperField('Columns 390×390', 'col390', s.col390, COL_M3.c390 + ' m³ concrete per block')}
     ${stepperField('Extra Wall', 'extraWall', s.extraWall)}
 
     <div class="breakdown" style="margin-top:12px; padding-top:10px; border-top:1px solid var(--line);">
@@ -487,10 +498,11 @@ function renderBreakdownModal(g){
         <div class="brow"><span class="l">Sills</span><span class="r">${round1(s.sills)}</span></div>
         <div class="brow"><span class="l">Droppers (${s.droppers} × ${fmtHalf(c.dropperCourses)} × ½)</span><span class="r">${round1(c.dropperBlocks)}</span></div>
         <div class="brow"><span class="l">3/4 & Others (${s.threeQuarter} × ${fmtHalf(c.dropperCourses)} × ½)</span><span class="r">${round1(c.threeQBlocks)}</span></div>
-        <div class="brow"><span class="l">Columns</span><span class="r">${round1(s.columns)}</span></div>
         <div class="brow"><span class="l">Extra Wall</span><span class="r">${round1(s.extraWall)}</span></div>
-        <div class="brow total"><span class="l">Total blocks</span><span class="r">${round1(c.totalBlocks)}</span></div>
-        <div class="brow"><span class="l">÷ ${c.perM3} blocks/m³</span><span class="r">${c.m3.toFixed(3)} m³</span></div>
+        <div class="brow"><span class="l">Wall blocks ÷ ${c.perM3}/m³</span><span class="r">${c.wallM3.toFixed(3)} m³</span></div>
+        <div class="brow"><span class="l">Columns 290×290 (${c.col290} × ${COL_M3.c290})</span><span class="r">${(c.col290*COL_M3.c290).toFixed(3)} m³</span></div>
+        <div class="brow"><span class="l">Columns 390×390 (${c.col390} × ${COL_M3.c390})</span><span class="r">${(c.col390*COL_M3.c390).toFixed(3)} m³</span></div>
+        <div class="brow total"><span class="l">Section volume</span><span class="r">${c.m3.toFixed(3)} m³</span></div>
       </div>
     </div>`;
   });
