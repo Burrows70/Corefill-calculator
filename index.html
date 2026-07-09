@@ -267,7 +267,6 @@ function defaultSection(n){
     blockType: 'standard',
     customPerM3: 130,
     bond: 'single',      // single | double
-    halfBottom: false,   // half block bottom course
     heightM: 2.8,
     topCourse: 0,         // blocks counted along top course
     heads: 0,
@@ -309,11 +308,12 @@ function removeSection(id){
 }
 
 function calcSection(s){
-  const hb = !!s.halfBottom;
-  // with a half block bottom course, the wall is N full blocks + a half (e.g. 2.7m = 13 + half)
-  const blocksHigh = s.heightM > 0 ? Math.round((s.heightM - (hb ? COURSE_HEIGHT/2 : 0)) / COURSE_HEIGHT) : 0;
+  // height rounds to the nearest half course: 2.8m = 14, 2.7m = 13½, 1.5m = 7½
+  const coursesExact = s.heightM > 0 ? Math.round(s.heightM / (COURSE_HEIGHT/2)) / 2 : 0;
+  const hasHalf = coursesExact % 1 !== 0;
+  const blocksHigh = Math.floor(coursesExact);
   const topRows = s.bond === 'double' ? 2 : 1;
-  const dropperCourses = Math.max(blocksHigh - topRows, 0) + (hb && blocksHigh > 0 ? 0.5 : 0);
+  const dropperCourses = Math.max(blocksHigh - topRows, 0) + (hasHalf && blocksHigh > 0 ? 0.5 : 0);
   const topBlocks = s.topCourse * topRows;
   const dropperBlocks = (Number(s.droppers)||0) * dropperCourses * 0.5;
   const threeQBlocks = (Number(s.threeQuarter)||0) * dropperCourses * 0.5;
@@ -326,7 +326,7 @@ function calcSection(s){
   const colM3 = col290 * COL_M3.c290 + col390 * COL_M3.c390;
   const totalBlocks = wallBlocks + col290 + col390;
   const m3 = wallM3 + colM3;
-  return { blocksHigh, topRows, dropperCourses, topBlocks, dropperBlocks, threeQBlocks,
+  return { blocksHigh, coursesExact, hasHalf, topRows, dropperCourses, topBlocks, dropperBlocks, threeQBlocks,
            wallBlocks, wallM3, col290, col390, colM3, totalBlocks, perM3, m3 };
 }
 
@@ -383,19 +383,12 @@ function renderSection(s, idx){
           <button data-val="double" class="${s.bond==='double'?'active':''}">Double</button>
         </div>
       </div>
-      <div>
-        <label class="field"><span class="lbl">Half Block Bottom</span></label>
-        <div class="segmented" data-group="halfBottom">
-          <button data-val="no" class="${!s.halfBottom?'active':''}">No</button>
-          <button data-val="yes" class="${s.halfBottom?'active':''}">Yes</button>
-        </div>
-      </div>
     </div>
 
     <label class="field">
       <span class="lbl">Wall Height (m)</span>
       <input class="decimal-input" type="number" inputmode="decimal" step="0.1" value="${s.heightM}" data-field="heightM">
-      <div class="hint"><span class="computed-chip">Blocks high: <b>${fmtHalf(c.blocksHigh + (s.halfBottom?0.5:0))}</b></span> &nbsp; <span class="computed-chip">Core rows (excl. top): <b>${fmtHalf(c.dropperCourses)}</b></span></div>
+      <div class="hint"><span class="computed-chip">Blocks high: <b>${fmtHalf(c.coursesExact)}</b></span> &nbsp; <span class="computed-chip">Core rows (excl. top): <b>${fmtHalf(c.dropperCourses)}</b></span></div>
     </label>
 
     ${stepperField('Top Course Blocks', 'topCourse', s.topCourse, 'Blocks counted along the top row (×'+c.topRows+' for '+s.bond+' bond)')}
@@ -439,9 +432,6 @@ function renderSection(s, idx){
   });
   div.querySelectorAll('[data-group="bond"] button').forEach(btn=>{
     btn.addEventListener('click', ()=>{ s.bond = btn.dataset.val; saveState(); render(); });
-  });
-  div.querySelectorAll('[data-group="halfBottom"] button').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ s.halfBottom = btn.dataset.val === 'yes'; saveState(); render(); });
   });
   const removeBtn = div.querySelector('[data-action="remove"]');
   if(removeBtn) removeBtn.addEventListener('click', ()=>removeSection(s.id));
@@ -493,7 +483,7 @@ function wireSteppers(div, s){
 function renderInPlaceStats(div, s){
   const c = calcSection(s);
   const hints = div.querySelectorAll('.hint .computed-chip b');
-  if(hints[0]) hints[0].textContent = fmtHalf(c.blocksHigh + (s.halfBottom?0.5:0));
+  if(hints[0]) hints[0].textContent = fmtHalf(c.coursesExact);
   if(hints[1]) hints[1].textContent = fmtHalf(c.dropperCourses);
   updateResult();
 }
@@ -512,7 +502,7 @@ function renderBreakdownModal(g){
   let html = '';
   g.perSection.forEach(({s,c})=>{
     html += `<div style="margin-bottom:14px;">
-      <div style="font-weight:700;color:var(--accent2);margin-bottom:6px;">${escapeHtml(s.name)} <span style="color:var(--muted);font-weight:400;font-size:12px;">(${BLOCK_TYPES[s.blockType]?.label||'Custom'}${BLOCK_TYPES[s.blockType]?.sub?' '+BLOCK_TYPES[s.blockType].sub:''}, ${s.bond} bond, ${fmtHalf(c.blocksHigh + (s.halfBottom?0.5:0))} blocks high${s.halfBottom?', half block bottom':''})</span></div>
+      <div style="font-weight:700;color:var(--accent2);margin-bottom:6px;">${escapeHtml(s.name)} <span style="color:var(--muted);font-weight:400;font-size:12px;">(${BLOCK_TYPES[s.blockType]?.label||'Custom'}${BLOCK_TYPES[s.blockType]?.sub?' '+BLOCK_TYPES[s.blockType].sub:''}, ${s.bond} bond, ${fmtHalf(c.coursesExact)} blocks high${c.hasHalf?' incl. ½ block':''})</span></div>
       <div class="breakdown">
         <div class="brow"><span class="l">Top course (${s.topCourse} × ${c.topRows})</span><span class="r">${round1(c.topBlocks)}</span></div>
         <div class="brow"><span class="l">Heads</span><span class="r">${round1(s.heads)}</span></div>
